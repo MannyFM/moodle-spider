@@ -22,13 +22,33 @@ def download_file(link, directory):
         file_link = soup.find(class_="resourceworkaround").find("a").get("href")
     else:
         file_link = link
-    filename = file_link.split("/")[-1]
+    filename = file_link.split("/")[-1].split("?")[0]
     filename = urllib.unquote(filename)
     print "downloading %s" % (filename,)
     if os.path.exists(directory + filename):
         print "file already exists"
     else:
         br.retrieve(file_link, directory + filename)
+
+
+def download_folder(link, directory):
+    global br
+    contents = br.open(link).read()
+    soup = BeautifulSoup(contents, "html.parser")
+
+    files = soup.find(class_="filemanager").find_all('a')
+    foldername = soup.find(id="region-main").find('h2').text
+    foldername = foldername.replace("/", "_")
+    print "downloading folder %s" % (foldername,)
+
+    folder_dir = directory + foldername + "/"
+    if not os.path.exists(folder_dir):
+        os.mkdir(folder_dir)
+
+    for link in files:
+        print link.text
+        href = link.get('href')
+        download_file(href, folder_dir)
 
 
 class Spider:
@@ -57,9 +77,9 @@ class Spider:
 
         contents = br.response().read()
         if "My courses" not in contents:
-            print("Cannot connect to moodle")
+            print("cannot connect to moodle")
             return None
-        print("Successfully authorized")
+        print("successfully authorized")
         courses = contents.split("My courses</span></p>")[1]
         courses = courses.split('</ul>')[0]
         regex = re.compile('<a title="(.*?)" href="(.*?)">(.*?)</a>')
@@ -71,7 +91,7 @@ class Spider:
 
     def parse_course(self, course_name, course_link, course_abbr):
         global br
-        print "Parsing %s" % (course_name,)
+        print "parsing %s" % (course_name,)
         course_dir = self.root_dir + course_abbr + "/"
         if not os.path.isdir(course_dir):
             os.mkdir(course_dir)
@@ -82,16 +102,20 @@ class Spider:
         links = soup.find(class_="weeks").find_all("a")
         for link in links:
             href = link.get('href')
-            if "resource" not in href:
-                continue
-            download_file(href, course_dir)
+            if "resource" in href:
+                download_file(href, course_dir)
+            elif "folder" in href:
+                download_folder(href, course_dir)
+            else:
+                print "unknown type of attachment:", href
 
 
 # %%
 def main():
     spider = Spider()
     course_list = spider.authorize_and_get_course_list()
-    spider.parse_course_tuple(course_list[0])
+    for course in course_list:
+        spider.parse_course_tuple(course)
 
 
 if __name__ == "__main__":
