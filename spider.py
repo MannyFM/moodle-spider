@@ -1,11 +1,12 @@
 # %%
 import cookielib
-import mechanize
 import urllib
 import os
 import re
 from ConfigParser import ConfigParser
+
 from bs4 import BeautifulSoup
+import mechanize
 
 cj = cookielib.CookieJar()
 br = mechanize.Browser()
